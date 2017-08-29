@@ -17,14 +17,14 @@ import numpy as np
 # CallPutFlag - This is set to 'c' for call option, anything else for put
 # S - Stock price
 # K - Strike price
-# T - Time to maturity
+# T - Time to maturity (in days)
 # r - Riskfree interest rate
 # d - Dividend yield
-# v - Volatility
+# v - Volatility (in days)
 """
 # Function for black scholes option price
 # Set for Puts
-def BlackScholes(CallPutFlag = 'p',S,K,T,r,d,v):
+def BlackScholes(CallPutFlag,S,K,T,r,d,v):
     d1 = (log(float(S)/K)+((r-d)+v*v/2.)*T)/(v*sqrt(T))
     d2 = d1-v*sqrt(T)
     if CallPutFlag=='c':
@@ -34,7 +34,7 @@ def BlackScholes(CallPutFlag = 'p',S,K,T,r,d,v):
     
 # Function for black scholes greeks
 # Set for Puts
-def BlackScholes_Greeks(CallPutFlag = 'p', S, K, r, v, T, d):
+def BlackScholes_Greeks(CallPutFlag, S, K, r, v, T, d):
     if CallPutFlag == 'c':
         T_sqrt = sqrt(T)
         d1 = (log(float(S)/K)+((r-d)+v*v/2.)*T)/(v*T_sqrt)
@@ -54,5 +54,4 @@ def BlackScholes_Greeks(CallPutFlag = 'p', S, K, r, v, T, d):
         Vega = S * T_sqrt * norm.pdf(d1)
         Rho = -K*T*exp(-r*T) * norm.cdf(-d2)
     return Delta, Gamma, Theta, Vega, Rho
-
 

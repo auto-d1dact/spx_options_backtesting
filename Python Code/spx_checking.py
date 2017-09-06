@@ -132,8 +132,8 @@ def spx_implied_var(rolling_window, var_pct, mkt_time = 'Close'):
     axes[0,1].set_title('Distribution of Breach Percentage')
     axes[1,1].set_title('Distribution of VIX Close on Trade Day')
     
-    historical_prob_of_breach = 100*round(len(plot_df)/float(len(temp_df.dropna())),4)
-    print("The historical probability of breaching is " + str(historical_prob_of_breach) + "%")
+    historical_prob_of_breach = 100*len(plot_df)/float(len(temp_df.dropna()))
+    print("The historical probability of breaching is " + str(round(historical_prob_of_breach,2)) + "%")
     print("With the total occurences being " + str(len(plot_df)) + " times")
     
     plot_df = pd.DataFrame.sort_values(plot_df,by = 'actual_to_var_diff')
@@ -141,7 +141,7 @@ def spx_implied_var(rolling_window, var_pct, mkt_time = 'Close'):
     print(plot_df.head())
     
     print("The latest SPX level and suggested strike is:")
-    print(plot_df[['spx','VIX Close','skew','var_spx_lvl']].tail(3))
+    print(temp_df[['spx','VIX Close','skew','var_spx_lvl']].tail(3))
     
     return temp_df[['spx','spx_shift','var_pct',
                     'var_spx_lvl','actual_to_var_diff',

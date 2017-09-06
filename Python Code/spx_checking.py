@@ -81,8 +81,14 @@ df['VIX Close'][2714] = 32.5
 df['VIX Close'] = df['VIX Close'].astype('float')
 df['VIX Open'] = df['VIX Open'].astype('float')
 
+# Adjusting VIX so that it's on 252 trading days
 df['Daily VIX Open'] = np.sqrt(((df['VIX Open']*df['VIX Open'])/365)*1.5)/100
 df['Daily VIX Close'] = np.sqrt(((df['VIX Close']*df['VIX Close'])/365)*1.5)/100
+
+# Cleaning up unused dataframes
+del skew, spx, vix, vix_present, vxo_old
+
+
 #%% Creating function to produce the daily x% VaR of SPX
 
 # spx_implied_var: rolling_window, var_pct, mkt_time --> dataframe
@@ -92,14 +98,26 @@ df['Daily VIX Close'] = np.sqrt(((df['VIX Close']*df['VIX Close'])/365)*1.5)/100
 #   VIX as the scaling parameter and SKEW as the shape parameter
 
 def spx_implied_var(rolling_window, var_pct, mkt_time = 'Close'):
-    temp_df = df.copy()
-    
+        
     if mkt_time == 'Open':
-        pass
+        temp_df = df[['SPX Open','SPX Close','skew',
+                      'Daily VIX Open','Daily VIX Close']]
+        temp_df['spx_shift'] = temp_df['SPX Close'].shift(-rolling_window)
+        temp_df['vix_shift'] = temp_df['Daily VIX Close'].shift(-rolling_window)
+        del temp_df['SPX Close'], temp_df['Daily VIX Close']
+        temp_df.columns = ['spx','skew','vix','spx_shift','vix_shift']
+    else:
+        temp_df = df[['SPX Close','skew','Daily VIX Close']]
+        temp_df.columns = ['spx','skew','vix']
+        temp_df['spx_shift'] = temp_df['spx'].shift(-rolling_window)
+        temp_df['vix_shift'] = temp_df['vix'].shift(-rolling_window)
     
+    temp_df['period_vix'] = temp_df['vix']*np.sqrt(rolling_window)
+    temp_df['var_pct'] = skn.ppf(var_pct, temp_df['skew'], 0, temp_df['period_vix'])
     
+    temp_df['var_spx_lvl'] = temp_df['spx']*(1 + temp_df['var_pct'])
     
-    return temp_df
+    return temp_df[['spx','spx_shift','var_pct','var_spx_lvl']]
 
 
 

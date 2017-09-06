@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import os
 import quandl as qd
 import seaborn as sns
+from scipy.stats import skewnorm as skn
 
 # Function for saving excel files
 def save_xls(list_dfs, xls_path, sheet_names):
@@ -53,8 +54,21 @@ skew.columns = ['Date','Skew','na1','na2']
 skew = skew[1:]
 skew['Date'] = pd.to_datetime(skew['Date'])
 skew = skew.set_index(pd.DatetimeIndex(skew['Date']))[['Skew']]
+skew['skew'] = -(pd.to_numeric(skew['Skew'], downcast='float') - 100)/10
+del skew['Skew']
 
 #%% Reading in SPX Data
 os.chdir('C:\\Users\\Fang\\Desktop\\Python Trading\\SPX Option Backtester\\spx_options_backtesting\\SPX Data')
 spx = pd.read_csv('SPX.csv')
 spx = spx.set_index(pd.DatetimeIndex(spx['Date']))[['Open','High','Low','Close','Adj Close']]
+
+
+#%% Joining all index together to one dataframe
+spx = spx[['Open','Close']]
+spx.columns = ['SPX ' + s for s in spx.columns.tolist()]
+
+vix = vix[['Open','Close']]
+vix.columns = ['VIX ' + s for s in vix.columns.tolist()]
+
+#%%
+df = pd.concat([spx,vix,skew],axis = 1).dropna()

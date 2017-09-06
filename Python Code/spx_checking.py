@@ -98,7 +98,10 @@ del skew, spx, vix, vix_present, vxo_old
 #   VIX as the scaling parameter and SKEW as the shape parameter
 
 def spx_implied_var(rolling_window, var_pct, mkt_time = 'Close'):
-        
+    
+    # Here it's specifying to use the market Open values so that
+    # the worst case will be from market open on trade date to
+    # market close on expiry
     if mkt_time == 'Open':
         temp_df = df[['SPX Open','SPX Close','skew',
                       'Daily VIX Open','Daily VIX Close','VIX Close']]
@@ -107,17 +110,36 @@ def spx_implied_var(rolling_window, var_pct, mkt_time = 'Close'):
         del temp_df['SPX Close'], temp_df['Daily VIX Close']
         temp_df.columns = ['spx','skew','vix','VIX Close','spx_shift','vix_shift']
     else:
+    # Here the function will be preparing to perform the usual
+    # close to close calculations
         temp_df = df[['SPX Close','skew','Daily VIX Close','VIX Close']]
         temp_df.columns = ['spx','skew','vix','VIX Close']
         temp_df['spx_shift'] = temp_df['spx'].shift(-rolling_window)
         temp_df['vix_shift'] = temp_df['VIX Close'].shift(-rolling_window)
     
+    # Taking daily vix of the day and scaling to the time-span
+    # specified in rolling_window, e.g., for a DTE of 5 days,
+    # the daily vix will be scaled by sqrt(5)
     temp_df['period_vix'] = temp_df['vix']*np.sqrt(rolling_window)
+    
+    # Here, the Skew Normal Distribution is invoked to calculate the
+    # worst potential 1% return assuming log returns follow a Skew
+    # Normal Distribution where the SKEW index approximates the 
+    # "shape" and the VIX index approximates the "scaling parameter"
+    # Mean is assumed to be 0, however, further testing may be needed
+    # To determine if a rolling mean-return is necessary
     temp_df['var_pct'] = skn.ppf(var_pct, temp_df['skew'], 0, temp_df['period_vix'])
     
-    temp_df['var_spx_lvl'] = temp_df['spx']*(1 + temp_df['var_pct'])
+    # Using the potential 1% return, the corresponding SPX level is
+    # calculated to provide a strike suggestion for the SPX put
+    temp_df['var_spx_lvl'] = temp_df['spx']*np.exp(temp_df['var_pct']) #(1 + temp_df['var_pct'])
+    
+    # Calculating what the percentage difference is between the actual realized
+    # SPX index versus it's approximated 1% worst case return assuming an SKN
+    # This column is only useful after filtering on breaches
     temp_df['actual_to_var_diff'] = temp_df['spx_shift']/temp_df['var_spx_lvl'] - 1
     
+    # Calculating the actual SPX return for the given rolling_window
     temp_df['actual_spx_return'] = temp_df['spx_shift']/temp_df['spx'] - 1
     
     plot_df = temp_df[temp_df['var_spx_lvl'] > temp_df['spx_shift']]
@@ -148,11 +170,15 @@ def spx_implied_var(rolling_window, var_pct, mkt_time = 'Close'):
                     'VIX Close','vix_shift']]
 
 
+# Function for simple one time calculation of a suggested
+# SPX Put strike level provided we enter a DTE (rolling_window)
+# VaR percent level, the current VIX index as is, the current SKEW
+# Index as is and the current SPX index
 def spx_implied_var_single(rolling_window, var_pct, vix, skew, spx):
     alpha = -(skew - 100)/10
     period_vix = (np.sqrt(((vix*vix)/365)*1.5)/100)*np.sqrt(rolling_window)
     pct_var = skn.ppf(var_pct, alpha, 0, period_vix)
-    spx_k_suggestion = spx*(1 + pct_var)
+    spx_k_suggestion = spx*np.exp(pct_var)#(1 + pct_var)
     print('VaR return percent for SPX is: ' + str(round(pct_var*100,2)))
     print('Suggested SPX strike: ' + str(np.floor(spx_k_suggestion)))
     

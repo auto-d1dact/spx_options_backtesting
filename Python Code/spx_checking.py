@@ -101,23 +101,59 @@ def spx_implied_var(rolling_window, var_pct, mkt_time = 'Close'):
         
     if mkt_time == 'Open':
         temp_df = df[['SPX Open','SPX Close','skew',
-                      'Daily VIX Open','Daily VIX Close']]
+                      'Daily VIX Open','Daily VIX Close','VIX Close']]
         temp_df['spx_shift'] = temp_df['SPX Close'].shift(-rolling_window)
-        temp_df['vix_shift'] = temp_df['Daily VIX Close'].shift(-rolling_window)
+        temp_df['vix_shift'] = temp_df['VIX Close'].shift(-rolling_window)
         del temp_df['SPX Close'], temp_df['Daily VIX Close']
-        temp_df.columns = ['spx','skew','vix','spx_shift','vix_shift']
+        temp_df.columns = ['spx','skew','vix','VIX Close','spx_shift','vix_shift']
     else:
-        temp_df = df[['SPX Close','skew','Daily VIX Close']]
-        temp_df.columns = ['spx','skew','vix']
+        temp_df = df[['SPX Close','skew','Daily VIX Close','VIX Close']]
+        temp_df.columns = ['spx','skew','vix','VIX Close']
         temp_df['spx_shift'] = temp_df['spx'].shift(-rolling_window)
-        temp_df['vix_shift'] = temp_df['vix'].shift(-rolling_window)
+        temp_df['vix_shift'] = temp_df['VIX Close'].shift(-rolling_window)
     
     temp_df['period_vix'] = temp_df['vix']*np.sqrt(rolling_window)
     temp_df['var_pct'] = skn.ppf(var_pct, temp_df['skew'], 0, temp_df['period_vix'])
     
     temp_df['var_spx_lvl'] = temp_df['spx']*(1 + temp_df['var_pct'])
+    temp_df['actual_to_var_diff'] = temp_df['spx_shift']/temp_df['var_spx_lvl'] - 1
     
-    return temp_df[['spx','spx_shift','var_pct','var_spx_lvl']]
+    temp_df['actual_spx_return'] = temp_df['spx_shift']/temp_df['spx'] - 1
+    
+    plot_df = temp_df[temp_df['var_spx_lvl'] > temp_df['spx_shift']]
+    
+    fig, axes = plt.subplots(nrows = 2, ncols = 2, figsize = (20,10))
+    plot_df['var_pct'].plot(ax = axes[0,0])
+    plot_df['actual_spx_return'].plot(ax = axes[1,0])
+    plot_df['actual_to_var_diff'].hist(ax = axes[0,1])
+    plot_df['VIX Close'].hist(ax = axes[1,1])
+    axes[0,0].set_title('Implied VaR Returns that Breached')
+    axes[1,0].set_title('Actual SPX Returns for Breach')
+    axes[0,1].set_title('Distribution of Breach Percentage')
+    axes[1,1].set_title('Distribution of VIX Close on Trade Day')
+    
+    historical_prob_of_breach = 100*round(len(plot_df)/float(len(temp_df.dropna())),4)
+    print("The historical probability of breaching is " + str(historical_prob_of_breach) + "%")
+    print("With the total occurences being " + str(len(plot_df)) + " times")
+    
+    plot_df = pd.DataFrame.sort_values(plot_df,by = 'actual_to_var_diff')
+    print("With the worst 5 cases as follows:")
+    print(plot_df.head())
+    
+    print("The latest SPX level and suggested strike is:")
+    print(plot_df[['spx','VIX Close','skew','var_spx_lvl']].tail(3))
+    
+    return temp_df[['spx','spx_shift','var_pct',
+                    'var_spx_lvl','actual_to_var_diff',
+                    'VIX Close','vix_shift']]
 
 
-
+def spx_implied_var_single(rolling_window, var_pct, vix, skew, spx):
+    alpha = -(skew - 100)/10
+    period_vix = (np.sqrt(((vix*vix)/365)*1.5)/100)*np.sqrt(rolling_window)
+    pct_var = skn.ppf(var_pct, alpha, 0, period_vix)
+    spx_k_suggestion = spx*(1 + pct_var)
+    print('VaR return percent for SPX is: ' + str(round(pct_var*100,2)))
+    print('Suggested SPX strike: ' + str(np.floor(spx_k_suggestion)))
+    
+    return spx_k_suggestion

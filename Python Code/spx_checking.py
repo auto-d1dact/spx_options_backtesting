@@ -145,7 +145,7 @@ def spx_implied_var(rolling_window, var_pct, mkt_time = 'Close'):
     plot_df = temp_df[temp_df['var_spx_lvl'] > temp_df['spx_shift']]
     
     fig, axes = plt.subplots(nrows = 2, ncols = 2, figsize = (20,10))
-    plot_df['var_pct'].plot(ax = axes[0,0])
+    plot_df[['var_pct','actual_spx_return']].plot(ax = axes[0,0])
     plot_df['actual_spx_return'].plot(ax = axes[1,0])
     plot_df['actual_to_var_diff'].hist(ax = axes[0,1])
     plot_df['VIX Close'].hist(ax = axes[1,1])
@@ -155,20 +155,23 @@ def spx_implied_var(rolling_window, var_pct, mkt_time = 'Close'):
     axes[1,1].set_title('Distribution of VIX Close on Trade Day')
     
     historical_prob_of_breach = 100*len(plot_df)/float(len(temp_df.dropna()))
+    print("--------------------------------------------------------------------")
+    print("")
     print("The historical probability of breaching is " + str(round(historical_prob_of_breach,2)) + "%")
     print("With the total occurences being " + str(len(plot_df)) + " times")
     
     plot_df = pd.DataFrame.sort_values(plot_df,by = 'actual_to_var_diff')
     print("With the worst 5 cases as follows:")
     print(plot_df.head())
-    
+    print("")
+    print("--------------------------------------------------------------------")
+    print("")
     print("The latest SPX level and suggested strike is:")
     print(temp_df[['spx','VIX Close','skew','var_spx_lvl']].tail(3))
     
     return temp_df[['spx','spx_shift','var_pct',
                     'var_spx_lvl','actual_to_var_diff',
                     'VIX Close','vix_shift']]
-
 
 # Function for simple one time calculation of a suggested
 # SPX Put strike level provided we enter a DTE (rolling_window)

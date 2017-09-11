@@ -97,7 +97,7 @@ del skew, spx, vix, vix_present, vxo_old
 #   case return using the skewnorm function and applying
 #   VIX as the scaling parameter and SKEW as the shape parameter
 
-def spx_implied_var(rolling_window, var_pct, mkt_time = 'Close'):
+def spx_implied_var(rolling_window, var_pct, mkt_time = 'Close', option = 'P'):
     
     # Here it's specifying to use the market Open values so that
     # the worst case will be from market open on trade date to
@@ -128,7 +128,16 @@ def spx_implied_var(rolling_window, var_pct, mkt_time = 'Close'):
     # "shape" and the VIX index approximates the "scaling parameter"
     # Mean is assumed to be 0, however, further testing may be needed
     # To determine if a rolling mean-return is necessary
-    temp_df['var_pct'] = skn.ppf(var_pct, temp_df['skew'], 0, temp_df['period_vix'])
+    
+    # Adjusted so that function can check OTM Call VaR given a certain
+    # probability level. Call VaR is assuming a normal distribution to
+    # be conservative while Put VaR is assuming a skew normal distribution
+    # to be conservative.
+    if option == 'C':
+        var_pct = 1 - var_pct
+        temp_df['var_pct'] = norm.ppf(var_pct, 0, temp_df['period_vix'])
+    else:
+        temp_df['var_pct'] = skn.ppf(var_pct, temp_df['skew'], 0, temp_df['period_vix'])
     
     # Using the potential 1% return, the corresponding SPX level is
     # calculated to provide a strike suggestion for the SPX put
@@ -142,7 +151,10 @@ def spx_implied_var(rolling_window, var_pct, mkt_time = 'Close'):
     # Calculating the actual SPX return for the given rolling_window
     temp_df['actual_spx_return'] = temp_df['spx_shift']/temp_df['spx'] - 1
     
-    plot_df = temp_df[temp_df['var_spx_lvl'] > temp_df['spx_shift']]
+    if option == 'C':
+        plot_df = temp_df[temp_df['var_spx_lvl'] < temp_df['spx_shift']]
+    else:
+        plot_df = temp_df[temp_df['var_spx_lvl'] > temp_df['spx_shift']]
     
     fig, axes = plt.subplots(nrows = 2, ncols = 2, figsize = (20,10))
     plot_df[['var_pct','actual_spx_return']].plot(ax = axes[0,0])
@@ -177,10 +189,14 @@ def spx_implied_var(rolling_window, var_pct, mkt_time = 'Close'):
 # SPX Put strike level provided we enter a DTE (rolling_window)
 # VaR percent level, the current VIX index as is, the current SKEW
 # Index as is and the current SPX index
-def spx_implied_var_single(rolling_window, var_pct, vix, skew, spx):
+def spx_implied_var_single(rolling_window, var_pct, vix, skew, spx, option = 'P'):
     alpha = -(skew - 100)/10
     period_vix = (np.sqrt(((vix*vix)/365)*1.5)/100)*np.sqrt(rolling_window)
-    pct_var = skn.ppf(var_pct, alpha, 0, period_vix)
+    if option == 'C':
+        var_pct = 1 - var_pct
+        pct_var = norm.ppf(var_pct, 0, period_vix)
+    else:
+        pct_var = skn.ppf(var_pct, alpha, 0, period_vix)
     spx_k_suggestion = spx*np.exp(pct_var)#(1 + pct_var)
     print('VaR return percent for SPX is: ' + str(round(pct_var*100,2)))
     print('Suggested SPX strike: ' + str(np.floor(spx_k_suggestion)))

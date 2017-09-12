@@ -172,7 +172,10 @@ def spx_implied_var(rolling_window, var_pct, mkt_time = 'Close', option = 'P'):
     print("The historical probability of breaching is " + str(round(historical_prob_of_breach,2)) + "%")
     print("With the total occurences being " + str(len(plot_df)) + " times")
     
-    plot_df = pd.DataFrame.sort_values(plot_df,by = 'actual_to_var_diff')
+    if option == 'C':
+        plot_df = pd.DataFrame.sort_values(plot_df,by = 'actual_to_var_diff', ascending = False)
+    else:
+        plot_df = pd.DataFrame.sort_values(plot_df,by = 'actual_to_var_diff')
     print("With the worst 5 cases as follows:")
     print(plot_df.head())
     print("")

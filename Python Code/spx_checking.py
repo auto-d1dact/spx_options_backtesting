@@ -156,7 +156,7 @@ def spx_implied_var(rolling_window, var_pct, mkt_time = 'Close', option = 'P'):
     else:
         plot_df = temp_df[temp_df['var_spx_lvl'] > temp_df['spx_shift']]
     
-    fig, axes = plt.subplots(nrows = 2, ncols = 2, figsize = (20,10))
+    fig, axes = plt.subplots(nrows = 2, ncols = 2, figsize = (15,15))
     plot_df[['var_pct','actual_spx_return']].plot(ax = axes[0,0])
     plot_df['actual_spx_return'].plot(ax = axes[1,0])
     plot_df['actual_to_var_diff'].hist(ax = axes[0,1])
@@ -165,6 +165,7 @@ def spx_implied_var(rolling_window, var_pct, mkt_time = 'Close', option = 'P'):
     axes[1,0].set_title('Actual SPX Returns for Breach')
     axes[0,1].set_title('Distribution of Breach Percentage')
     axes[1,1].set_title('Distribution of VIX Close on Trade Day')
+    fig.suptitle("SPX VaR at p: " + str(var_pct), fontsize=14)
     
     historical_prob_of_breach = 100*len(plot_df)/float(len(temp_df.dropna()))
     print("--------------------------------------------------------------------")

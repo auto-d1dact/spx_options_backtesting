@@ -206,3 +206,4 @@ def spx_implied_var_single(rolling_window, var_pct, vix, skew, spx, option = 'P'
     print('Suggested SPX strike: ' + str(np.floor(spx_k_suggestion)))
     
     return spx_k_suggestion
+

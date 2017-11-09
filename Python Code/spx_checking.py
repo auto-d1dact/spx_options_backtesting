@@ -51,12 +51,14 @@ vix = pd.concat([vxo_old,vix_present],axis = 0)
 
 # Reading SKEW Index data directly from CBOE
 skew = pd.read_csv('https://www.cboe.com/publish/scheduledtask/mktdata/datahouse/skewdailyprices.csv')
+skew_raw = skew.copy()
 skew.columns = ['Date','Skew','na1','na2']
 skew = skew[1:]
 skew['Date'] = pd.to_datetime(skew['Date'])
 skew = skew.set_index(pd.DatetimeIndex(skew['Date']))[['Skew']]
 skew['skew'] = -(pd.to_numeric(skew['Skew'], downcast='float') - 100)/10
 del skew['Skew']
+
 
 # Reading in SPX Data
 os.chdir('C:\\Users\\Fang\\Desktop\\Python Trading\\SPX Option Backtester\\spx_options_backtesting\\SPX Data')
@@ -87,6 +89,33 @@ df['Daily VIX Close'] = np.sqrt(((df['VIX Close']*df['VIX Close'])/365)*1.5)/100
 
 # Cleaning up unused dataframes
 del skew, spx, vix, vix_present, vxo_old
+
+#%% Worst Returns
+def worst_return(vixlvl, dte, price = 'Close'):
+    temp_df = df.copy()[['SPX Open','SPX Close','VIX Open','VIX Close']]
+    skew = skew_raw.copy()
+    skew.columns = ['Date','Skew','na1','na2']
+    skew = skew[1:]
+    skew['Date'] = pd.to_datetime(skew['Date'])
+    skew = skew.set_index(pd.DatetimeIndex(skew['Date']))[['Skew']]
+    
+    temp_df = pd.concat([temp_df,skew],axis = 1)
+    
+    temp_df['spx_shift'] = temp_df['SPX Close'].shift(-dte)
+    temp_df['vix_shift'] = temp_df['VIX Close'].shift(-dte)
+    
+    if price == 'Open':
+        temp_df['ret'] = temp_df['spx_shift']/temp_df['SPX Open'] - 1
+        temp_df = temp_df[temp_df['VIX Open'] <= vixlvl].dropna()
+    else:
+        temp_df['ret'] = temp_df['spx_shift']/temp_df['SPX Close'] - 1
+        temp_df = temp_df[temp_df['VIX Close'] <= vixlvl].dropna()
+    
+    print("Worst Return:")
+    print(temp_df.loc[temp_df['ret'].idxmin()])
+    print("Return Stats:")
+    print(temp_df['ret'].describe())
+    return temp_df.sort_values('ret', ascending = True).head()
 
 
 #%% Creating function to produce the daily x% VaR of SPX

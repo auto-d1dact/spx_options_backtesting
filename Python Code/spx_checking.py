@@ -91,7 +91,7 @@ df['Daily VIX Close'] = np.sqrt(((df['VIX Close']*df['VIX Close'])/365)*1.5)/100
 del skew, spx, vix, vix_present, vxo_old
 
 #%% Worst Returns
-def worst_return(vixlvl, dte, price = 'Close'):
+def worst_return(vixlvl, dte, price = 'Close', display = True):
     temp_df = df.copy()[['SPX Open','SPX Close','VIX Open','VIX Close']]
     skew = skew_raw.copy()
     skew.columns = ['Date','Skew','na1','na2']
@@ -111,10 +111,11 @@ def worst_return(vixlvl, dte, price = 'Close'):
         temp_df['ret'] = temp_df['spx_shift']/temp_df['SPX Close'] - 1
         temp_df = temp_df[temp_df['VIX Close'] <= vixlvl].dropna()
     
-    print("Worst Return:")
-    print(temp_df.loc[temp_df['ret'].idxmin()])
-    print("Return Stats:")
-    print(temp_df['ret'].describe())
+    if display:
+        print("Worst Return:")
+        print(temp_df.loc[temp_df['ret'].idxmin()])
+        print("Return Stats:")
+        print(temp_df['ret'].describe())
     return temp_df.sort_values('ret', ascending = True).head()
 
 
@@ -236,3 +237,18 @@ def spx_implied_var_single(rolling_window, var_pct, vix, skew, spx, option = 'P'
     
     return spx_k_suggestion
 
+#%% Creating a dataframe of worst returns
+
+vixlvls = list(np.arange(11,41))
+dtes = list(np.arange(1,91))
+returndict = {}
+
+for dte in dtes:
+    dte_returns = []
+    for vx in vixlvls:
+        dte_returns += [worst_return(vx, dte, display = False)['ret'][0]]
+    returndict[dte] = dte_returns
+
+#%%
+returnsdf = pd.DataFrame(returndict, index = vixlvls)
+returnsdf.to_csv('returnmatrix.csv')

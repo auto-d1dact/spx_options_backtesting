@@ -5,6 +5,7 @@ import numpy as np
 import datetime as dt
 import pandas.stats.moments as st
 from pandas import ExcelWriter
+import scipy.stats as st
 import matplotlib.pyplot as plt
 import os
 import quandl as qd
@@ -236,6 +237,78 @@ def spx_implied_var_single(rolling_window, var_pct, vix, skew, spx, option = 'P'
     print('Suggested SPX strike: ' + str(np.floor(spx_k_suggestion)))
     
     return spx_k_suggestion
+
+#%% Put Delta Check
+import statsmodels.api as sm
+
+spot = 2693.25
+strike = 2650
+delta = -0.163
+gamma = 0.005
+vega = 0.505
+theta = -2.834
+dte = 2
+vixlevel = 19.35
+premium = 5.50
+
+def iv_predict(vixlevel, dte, spxstd):
+    # Creating training set to estimate IV Change
+    iv = df['VIX Close']/np.sqrt(252/dte)/100
+    iv.name = 'IV DTE'
+    vix_ret = df['VIX Close'].pct_change(dte)
+    vix_ret.name = 'VIX Return'
+    spx_ret = df['SPX Close'].pct_change(dte)
+    spx_ret.name = 'SPX Return'
+    trainingset = pd.concat([iv,vix_ret,spx_ret],axis = 1).dropna()
+    trainingset['SPX Std'] = trainingset['SPX Return']/trainingset['IV DTE']
+    
+    linreg = sm.OLS(trainingset['VIX Return'], trainingset['SPX Std']).fit()
+    iv_change = linreg.predict(spxstd)[0]
+    return ((1-iv_change)*vixlevel - vixlevel)/100
+
+def put_delta_to_strike(spot,strike,delta,gamma,vega,theta,dte,vixlevel):
+    spxstd = (strike/spot-1)/(vixlevel/(100*np.sqrt(252/dte)))
+    iv_change = iv_predict(vixlevel, dte, abs(spxstd))
+    spxchange = strike - spot
+    putprice = delta*spxchange + 0.5*gamma*(spxchange**2) + vega*iv_change + theta*dte
+    return putprice
+
+def put_delta(spot,spxstd,delta,gamma,vega,theta,dte,vixlevel):
+    spxchange = -spot*(spxstd*(vixlevel/(100*np.sqrt(252/dte))))
+    iv_change = iv_predict(vixlevel, dte, abs(spxstd))
+    putprice = delta*spxchange + 0.5*gamma*(spxchange**2) + vega*iv_change + theta*dte
+    return putprice
+
+put_risk = pd.DataFrame({'std': np.arange(1,4,0.5),
+                         'put delta': [put_delta(spot,spxstd,delta,
+                                                 gamma,vega,theta,
+                                                 dte,vixlevel) for spxstd in np.arange(1,4,0.5)]})
+put_risk['loss'] = put_risk['put delta']/premium*100
+print(put_risk)
+print('\n')
+print('Put Delta for hitting strike:')
+print(put_delta_to_strike(spot,strike,delta,gamma,vega,theta,dte,vixlevel))
+
+# Change in Put Price ~ Delta*($ Change in Stock) 
+#                       + 0.5*Gamma*($ Change in Stock)^2 
+#                       + Vega*(Change in Annualized Vol)
+#                       + Theta*DTE
+
+#%%
+'''
+Functions to write
+
+Given SPX return, DTE, and VIX level, how often has this occurred and when
+
+For DTE > 1, given Strike return, what is average daily return to hit strike
+and how often it's occurred. When was the latest occurrence. I.e., consecutive
+down days.
+
+Given, VIX, VVIX, SKEW, and SPX, what is the implied VaR drop for SPX
+
+Build an RUT version of all codes
+
+'''
 
 #%% Creating a dataframe of worst returns
 

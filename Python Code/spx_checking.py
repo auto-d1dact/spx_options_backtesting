@@ -295,6 +295,10 @@ print(put_delta_to_strike(spot,strike,delta,gamma,vega,theta,dte,vixlevel))
 #                       + Theta*DTE
 
 #%%
+
+from yahoo_finance import Share
+yahoo = Share('YHOO')
+
 '''
 Functions to write
 
